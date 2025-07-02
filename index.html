@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Toast Watcher Test</title>
+  <style>
+    #toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      max-width: 300px;
+      z-index: 10000;
+    }
+    .toast {
+      background: #333;
+      color: #fff;
+      padding: 10px 15px;
+      margin-top: 10px;
+      border-radius: 5px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      font-family: sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <div id="toast-container" class="toast-bottom-right toast-container"></div>
+
+  <button onclick="showToast('🔔 Sample Toast Alert')">Show Toast</button>
+
+  <script>
+    (() => {
+      if (window.__toastWatcherRunning) {
+        console.log("⛔ Script already running. Exiting...");
+        return;
+      }
+      window.__toastWatcherRunning = true;
+      console.log("🚀 Toast watcher started...");
+
+      const webhookUrl = "https://script.google.com/macros/s/AKfycbw60J8bpy5sl1uWeLq-ePrKfUNQ6O9TU5wte5SBru1rb93YaACbttT4eIfyN94Uds3mVQ/exec";
+      const sentAlerts = new Set();
+
+      const sendToSheet = (text) => {
+        if (sentAlerts.has(text)) return;
+        sentAlerts.add(text);
+        console.log("📤 Logging toast alert:", text);
+
+        fetch(webhookUrl, {
+          method: "POST",
+          body: JSON.stringify({ alertText: text }),
+          headers: { "Content-Type": "application/json" }
+        }).then(r => r.text()).then(console.log).catch(console.error);
+      };
+
+      const waitForToastContainer = () => {
+        const container = document.getElementById("toast-container");
+        if (!container) {
+          console.log("⏳ Waiting for toast container...");
+          setTimeout(waitForToastContainer, 1000);
+          return;
+        }
+
+        console.log("✅ Toast container found. Watching for new alerts...");
+
+        const observer = new MutationObserver((mutationsList) => {
+          for (const mutation of mutationsList) {
+            for (const node of mutation.addedNodes) {
+              if (node.nodeType === 1 && node.innerText.trim()) {
+                sendToSheet(node.innerText.trim());
+              }
+            }
+          }
+        });
+
+        observer.observe(container, { childList: true });
+      };
+
+      waitForToastContainer();
+    })();
+
+    // Simulated toast function
+    function showToast(message) {
+      const toast = document.createElement("div");
+      toast.className = "toast";
+      toast.innerText = message;
+      document.getElementById("toast-container").appendChild(toast);
+    }
+  </script>
+</body>
+</html>
